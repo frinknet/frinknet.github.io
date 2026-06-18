@@ -8,6 +8,10 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  html, body {
+    overflow: hidden;
+  }
+
   body {
     background: #0a0a0c;
     color: #c8b8a0;
@@ -19,17 +23,36 @@
     overflow-x: hidden;
   }
 
-  #network-canvas {
+  .bg-container {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     z-index: 0;
-    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: bgZoomIn 3.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   }
 
-  .content {
+  #network-canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  @keyframes bgZoomIn {
+    0% {
+      transform: scale(0.08);
+      opacity: 0.3;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .content-container {
     position: relative;
     z-index: 1;
     display: flex;
@@ -38,16 +61,56 @@
     justify-content: center;
     min-height: 100vh;
     width: 100%;
+    animation: contentZoomOut 3.3s cubic-bezier(0.16, 1, 0.3, 1) 1.2s both;
+  }
+
+  @keyframes contentZoomOut {
+    0% {
+      opacity: 0;
+      filter: blur(4px);
+      transform: scale(1.8);
+    }
+    50% {
+      opacity: 1;
+      filter: blur(0);
+    }
+    100% {
+      opacity: 1;
+      filter: blur(0);
+      transform: scale(1);
+    }
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
     padding: 2rem;
+    padding-bottom: 12vh;
   }
 
   .top-line {
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .top-line ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0;
     font-size: clamp(1rem, 2.5vw, 1.5rem);
     letter-spacing: 0.35em;
     text-transform: lowercase;
-    color: #f5ebe0;
-    margin-bottom: 2rem;
-    text-align: center;
+  }
+
+  .top-line li + li::before {
+    content: '·';
+    color: #8a7e6b;
+    margin: 0 0.5em;
   }
 
   .top-line a {
@@ -60,11 +123,6 @@
     color: #ffffff;
   }
 
-  .separator {
-    color: #8a7e6b;
-    margin: 0 0.5em;
-  }
-
   .hero-image {
     min-height: 50vh;
     min-width: 50vh;
@@ -73,144 +131,225 @@
     object-fit: contain;
     display: block;
     filter: drop-shadow(0 0 40px rgba(200, 130, 60, 0.15));
+    opacity: 0.70;
   }
 
   .bottom-line {
     font-size: clamp(1.5rem, 4vw, 3rem);
     letter-spacing: 0.15em;
     color: #f5ebe0;
-    margin-top: 2.5rem;
+    margin-top: clamp(1rem, 5vw, 2.5rem);
     text-align: center;
     font-weight: 300;
+    opacity: 0.85;
+    transform: translateX(0);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+  }
+
+  .bottom-line.fade-out {
+    opacity: 0.15;
+    transform: translateX(-1rem);
+  }
+
+  .bottom-line.fade-in {
+    opacity: 0.85;
+    transform: translateX(0);
+  }
+
+  .bottom-line::after {
+    content: '_';
+    display: inline-block;
+    margin-left: 0.08em;
+    color: #c88246;
+    opacity: 0.55;
+    animation: blink 2.2s steps(2, start) infinite;
+  }
+
+  .letter {
+    display: inline-block;
+    min-width: 0.12em;
+    transition: color 8.5s ease, opacity 8.5s ease;
+  }
+
+  .letter.fading {
+    color: rgba(200, 130, 70, 0);
+    opacity: 0;
+  }
+
+  @keyframes blink {
+    0%, 45% { opacity: 0.55; }
+    46%, 100% { opacity: 0; }
   }
 </style>
 </head>
 <body>
 
-<canvas id="network-canvas"></canvas>
+<div class="bg-container">
+  <canvas id="network-canvas"></canvas>
+</div>
 
-<div class="content">
-  <div class="top-line">
-    <a href="/libs/">libs</a><span class="separator">·</span>
-    <a href="/apps/">apps</a><span class="separator">·</span>
-    <a href="/tools/">tools</a><span class="separator">·</span>
-    <a href="/docs/">docs</a>
+<div class="content-container">
+  <div class="content">
+    <nav class="top-line" aria-label="Main navigation">
+      <ul>
+        <li><a href="/libs/">libs</a></li>
+        <li><a href="/apps/">apps</a></li>
+        <li><a href="/tools/">tools</a></li>
+        <li><a href="/docs/">docs</a></li>
+      </ul>
+    </nav>
+    <img src="frink.png" alt="FRINKnet and friends" class="hero-image">
+    <h1 class="bottom-line" id="bottom-title"></h1>
   </div>
-  <img src="frink.png" alt="FRINKnet and friends" class="hero-image">
-  <div class="bottom-line">the godfather of system resources</div>
 </div>
 
 <script>
-(() => {
-  const canvas = document.getElementById('network-canvas');
-  const ctx = canvas.getContext('2d');
-
-  const NODE_COLORS = [
-    [200, 130, 70],
-    [180, 110, 60],
-    [220, 160, 100],
-    [160, 140, 120],
-    [140, 130, 110],
-    [100, 90, 80],
+  const titles = [
+    'godfather of system resources',
+    'sensei of the inter-webs',
+    'scripted minimalist',
+    'intelligent beyond artificial',
+    'architects of elegance',
+    'machine whisperer',
+    'gardian of clean code',
+    'open source oracle',
+    'cryptographic chiefton',
+    'memory stack mastermind',
+    'weaver of wasm dreams',
+    'sage of embedded systems',
+    'poet of pixelization',
+    'making servers purr',
+    'fashionably functional',
+    'lord of the lean build',
+    'wizard of websockets',
+    'faust and festidious',
+    'realtime reliability',
+    'pedantic persistance',
   ];
 
-  let nodes = [];
-  let w, h, dpr;
-
-  const DENSITY = 20000;
-
-  function resize() {
-    dpr = window.devicePixelRatio || 1;
-    w = window.innerWidth;
-    h = window.innerHeight;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    buildNodes();
+  const titleEl = document.getElementById('bottom-title');
+  const initialText = titles[Math.floor(Math.random() * titles.length)];
+  let titleIndex = titles.indexOf(initialText);
+  titleEl.textContent = initialText;
+  titleEl.innerHTML = '';
+  for (const char of initialText) {
+    const span = document.createElement('span');
+    span.className = 'letter';
+    span.textContent = char === ' ' ? '\u00a0' : char;
+    titleEl.appendChild(span);
   }
 
-  function buildNodes() {
-    const count = Math.max(50, Math.floor((w * h) / DENSITY));
-    nodes = [];
-    for (let i = 0; i < count; i++) {
-      nodes.push({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        r: 2 + Math.random() * 3,
-        color: NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)],
-        phase: Math.random() * Math.PI * 2,
-      });
+  const recentTitles = [];
+  recentTitles.push(titleIndex);
+
+  const BACKSPACE_REMAINING_CHARS = 10;
+  const BACKSPACE_START_DELAY_MS = 1650;
+
+  let charIndex = initialText.length;
+  let fadeIndex = 0;
+  renderTitle(0, charIndex);
+  let pauseTimer = null;
+  let backspaceTimer = null;
+  let backspacing = false;
+
+  function clearBackspaceTimer() {
+    if (backspaceTimer) {
+      clearTimeout(backspaceTimer);
+      backspaceTimer = null;
     }
   }
 
-  const CONNECT_DIST = 280;
-  const CONNECT_DIST_SQ = CONNECT_DIST * CONNECT_DIST;
-
-  let time = 0;
-
-  function radialFade(x, y, maxFade) {
-    const cx = w / 2;
-    const cy = h / 2;
-    const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
-    const maxDim = Math.max(w, h);
-    return Math.max(0, 1 - (dist / (maxDim / 2)) * maxFade);
-  }
-
-  function draw() {
-    ctx.clearRect(0, 0, w, h);
-    time += 0.008;
-
-    for (let i = 0; i < nodes.length; i++) {
-      const a = nodes[i];
-      a.x += a.vx;
-      a.y += a.vy;
-      if (a.x < 0) a.x += w;
-      if (a.x > w) a.x -= w;
-      if (a.y < 0) a.y += h;
-      if (a.y > h) a.y -= h;
-
-      for (let j = i + 1; j < nodes.length; j++) {
-        const b = nodes[j];
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const distSq = dx * dx + dy * dy;
-        if (distSq < CONNECT_DIST_SQ) {
-          const alpha = (1 - distSq / CONNECT_DIST_SQ) * 0.25;
-          const fade = radialFade((a.x + b.x) / 2, (a.y + b.y) / 2, 0.5);
-          const pulse = 0.8 + 0.2 * Math.sin(time + a.phase);
-          const r = Math.round((a.color[0] + b.color[0]) / 2);
-          const g = Math.round((a.color[1] + b.color[1]) / 2);
-          const bl = Math.round((a.color[2] + b.color[2]) / 2);
-          ctx.strokeStyle = `rgba(${r},${g},${bl},${alpha * pulse * fade})`;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        }
+  function backspaceStep() {
+    const letters = titleEl.querySelectorAll('.letter');
+    if (letters.length > 0) {
+      letters[letters.length - 1].remove();
+      const remaining = titleEl.querySelectorAll('.letter');
+      if (remaining.length > 0) {
+        backspaceTimer = setTimeout(backspaceStep, 28 + Math.random() * 18);
+      } else {
+        finishTitle();
       }
     }
-
-    for (const n of nodes) {
-      const pulse = 0.6 + 0.4 * Math.sin(time * 1.5 + n.phase);
-      const fade = radialFade(n.x, n.y, 0.5);
-      ctx.fillStyle = `rgba(${n.color[0]},${n.color[1]},${n.color[2]},${(0.4 + 0.2 * pulse) * fade})`;
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    requestAnimationFrame(draw);
   }
 
-  window.addEventListener('resize', resize);
-  resize();
-  draw();
-})();
+  function startBackspacingIfNeeded() {
+    const letters = titleEl.querySelectorAll('.letter');
+    if (!backspacing && fadeIndex >= Math.max(0, letters.length - BACKSPACE_REMAINING_CHARS)) {
+      backspacing = true;
+      backspaceTimer = setTimeout(backspaceStep, BACKSPACE_START_DELAY_MS);
+    }
+  }
+
+  function pickNextTitle() {
+    let nextIndex;
+    do {
+      nextIndex = Math.floor(Math.random() * titles.length);
+    } while (titles.length > 3 && recentTitles.includes(nextIndex));
+
+    titleIndex = nextIndex;
+    recentTitles.push(nextIndex);
+    while (recentTitles.length > 3) {
+      recentTitles.shift();
+    }
+  }
+
+  function renderTitle(fadeCount, visibleCount) {
+    const title = titles[titleIndex];
+    titleEl.innerHTML = '';
+    for (let i = 0; i < visibleCount; i++) {
+      const span = document.createElement('span');
+      span.className = i < fadeCount ? 'letter fading' : 'letter';
+      span.textContent = title[i] === ' ' ? '\u00a0' : title[i];
+      titleEl.appendChild(span);
+    }
+  }
+
+  function finishTitle() {
+    clearBackspaceTimer();
+    if (pauseTimer) {
+      clearTimeout(pauseTimer);
+      pauseTimer = null;
+    }
+    titleEl.textContent = '';
+    pickNextTitle();
+    charIndex = 0;
+    fadeIndex = 0;
+    backspacing = false;
+    pauseTimer = setTimeout(typeTitle, 1600);
+  }
+
+  function fadeAndBackspaceTitle() {
+    const letters = titleEl.querySelectorAll('.letter');
+
+    if (letters.length === 0) {
+      finishTitle();
+      return;
+    }
+
+    startBackspacingIfNeeded();
+
+    if (fadeIndex < letters.length) {
+      letters[fadeIndex].classList.add('fading');
+      fadeIndex++;
+      pauseTimer = setTimeout(fadeAndBackspaceTitle, 180 + Math.random() * 80);
+    }
+  }
+
+  function typeTitle() {
+    const title = titles[titleIndex];
+
+    charIndex++;
+    renderTitle(0, charIndex);
+
+    if (charIndex >= title.length) {
+      pauseTimer = setTimeout(fadeAndBackspaceTitle, 800);
+    } else {
+      pauseTimer = setTimeout(typeTitle, 21 + Math.random() * 10);
+    }
+  }
+
+  pauseTimer = setTimeout(fadeAndBackspaceTitle, 800);
 </script>
+<script src="scripts/bg.js" defer></script>
 </body>
 </html>
