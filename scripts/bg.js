@@ -10,20 +10,45 @@
       [140, 130, 110],
       [100, 90, 80],
     ],
+    cool: [
+      [80, 210, 220],
+      [70, 170, 210],
+      [120, 220, 230],
+      [60, 130, 190],
+    ],
   };
 
-  const MIN_TRANSITION_MS = 3000;
-  const MAX_TRANSITION_MS = 8500;
+  const COLOR_SPECTRUM = [
+    ...PALETTE.warm,
+    [205, 175, 150],
+    [165, 185, 175],
+    [125, 205, 190],
+    ...PALETTE.cool,
+  ];
+
+  function rgba(color, alpha) {
+    return `rgba(${color[0]},${color[1]},${color[2]},${alpha})`;
+  }
+
+  function pickSpectrumColor(randomness = Math.random()) {
+    const idx = Math.floor(randomness * (COLOR_SPECTRUM.length - 1));
+    return COLOR_SPECTRUM[idx];
+  }
+
+  const CYBER_GRID_COLOR = pickSpectrumColor(0.72);
+  const CYBER_GRID_BRIGHT_COLOR = pickSpectrumColor(0.86);
+  const SCANLINE_COLOR = pickSpectrumColor(0.68);
+  const MOUSE_GLOW_COLOR = pickSpectrumColor(0.78);
+
+  const TRANSITION_MS = 7000;
+  const RADIAL_START_DELAY_MS = 3600;
+  const RADIAL_FADE_IN_MS = 1000;
   const MIN_INTERVAL_MS = 14000;
   const MAX_INTERVAL_MS = 34000;
 
   const canvas = document.getElementById('network-canvas');
   const ctx = canvas.getContext('2d');
   let W = 0, H = 0, DPR = 1;
-
-  function easeInOut(t) {
-    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-  }
 
   function radialFade(x, y, w, h, strength) {
     const dx = x - w / 2, dy = y - h / 2;
@@ -91,7 +116,7 @@
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             r: 1.5 + Math.random() * 2.6,
-            color: PALETTE.warm[Math.floor(Math.random() * PALETTE.warm.length)],
+            color: pickSpectrumColor(Math.random()),
             phase: Math.random() * Math.PI * 2,
           });
           placed++;
@@ -155,6 +180,20 @@
     },
   };
 
+  function resetCyberStreak(st, w, h) {
+    st.len = 30 + Math.random() * 110;
+    st.speed = 4.0 + Math.random() * 10.0;
+    st.color = pickSpectrumColor(0.6 + Math.random() * 0.4);
+
+    if (Math.random() < 0.75) {
+      st.y = -st.len - Math.random() * h * 0.45;
+      st.x = Math.random() * (w + st.len * 0.35) - st.len * 0.15;
+    } else {
+      st.x = w + Math.random() * w * 0.25;
+      st.y = Math.random() * h;
+    }
+  }
+
   const cyberpunkAnimator = {
     name: 'cyberpunk',
     create(w, h) {
@@ -167,7 +206,7 @@
           len: 30 + Math.random() * 110,
           speed: 4.0 + Math.random() * 10.0,
           width: 1 + Math.random() * 2,
-          color: PALETTE.warm[Math.floor(Math.random() * PALETTE.warm.length)],
+          color: pickSpectrumColor(0.6 + Math.random() * 0.4),
           phase: Math.random() * Math.PI * 2,
         });
       }
@@ -176,7 +215,7 @@
         nodes.push({
           x: Math.random() * w, y: Math.random() * h,
           r: 1 + Math.random() * 3,
-          color: PALETTE.warm[Math.floor(Math.random() * PALETTE.warm.length)],
+          color: pickSpectrumColor(Math.random()),
           phase: Math.random() * Math.PI * 2,
         });
       }
@@ -194,14 +233,10 @@
     },
     update(w, h, time, dt, s) {
       for (const st of s.streaks) {
-        st.y += st.speed;
-        st.x -= st.speed * 0.18;
+        st.y += st.speed * dt;
+        st.x -= st.speed * 0.18 * dt;
         if (st.y - st.len > h || st.x + st.len < 0) {
-          st.y = -st.len - Math.random() * h * 0.25;
-          st.x = w + Math.random() * w * 0.15;
-          st.len = 30 + Math.random() * 110;
-          st.speed = 4.0 + Math.random() * 10.0;
-          st.color = PALETTE.warm[Math.floor(Math.random() * PALETTE.warm.length)];
+          resetCyberStreak(st, w, h);
         }
       }
     },
@@ -246,7 +281,7 @@
         const alpha = (0.22 + avgT * avgT * 0.48) * fadeOut;
         const lineW = 0.7 + avgT * 1.2;
         
-        ctx.strokeStyle = `rgba(200,130,70,${alpha})`;
+        ctx.strokeStyle = rgba(CYBER_GRID_COLOR, alpha);
         ctx.lineWidth = lineW;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -273,7 +308,7 @@
       const alpha = 0.040 + perspT * perspT * 0.165;
       const lineW = 0.6 + perspT * 0.9;
       
-      ctx.strokeStyle = `rgba(220,160,100,${alpha})`;
+      ctx.strokeStyle = rgba(CYBER_GRID_BRIGHT_COLOR, alpha);
       ctx.lineWidth = lineW;
       ctx.beginPath();
       ctx.moveTo(0, y);
@@ -290,7 +325,7 @@
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     for (let y = offset; y < h; y += gap) {
-      ctx.strokeStyle = `rgba(180,110,60,${0.018 + 0.015 * Math.sin(time * 0.45 + y)})`;
+      ctx.strokeStyle = rgba(SCANLINE_COLOR, 0.018 + 0.015 * Math.sin(time * 0.45 + y));
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, y);
@@ -308,12 +343,12 @@
       const pulse = 0.55 + 0.45 * Math.sin(time * 0.9 + st.phase);
       const alpha = 0.16 + pulse * 0.22;
       const grad = ctx.createLinearGradient(st.x, st.y, st.x + st.len * 0.35, st.y - st.len);
-      grad.addColorStop(0, `rgba(${st.color[0]},${st.color[1]},${st.color[2]},0)`);
-      grad.addColorStop(0.55, `rgba(${st.color[0]},${st.color[1]},${st.color[2]},${alpha})`);
-      grad.addColorStop(1, `rgba(245,235,224,${alpha * 0.4})`);
+      grad.addColorStop(0, rgba(st.color, 0));
+      grad.addColorStop(0.55, rgba(st.color, alpha));
+      grad.addColorStop(1, rgba(st.color, alpha * 0.4));
       ctx.strokeStyle = grad;
       ctx.shadowBlur = 14;
-      ctx.shadowColor = `rgba(${st.color[0]},${st.color[1]},${st.color[2]},0.45)`;
+      ctx.shadowColor = rgba(st.color, 0.45);
       ctx.lineWidth = st.width;
       ctx.beginPath();
       ctx.moveTo(st.x, st.y);
@@ -331,8 +366,8 @@
       const alpha = 0.18 + pulse * 0.28;
       const fade = radialFade(n.x, n.y, w, h, 0.32);
       ctx.shadowBlur = 18;
-      ctx.shadowColor = `rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.45)`;
-      ctx.fillStyle = `rgba(${n.color[0]},${n.color[1]},${n.color[2]},${alpha * fade})`;
+      ctx.shadowColor = rgba(n.color, 0.45);
+      ctx.fillStyle = rgba(n.color, alpha * fade);
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.r * (0.8 + pulse * 0.4), 0, Math.PI * 2);
       ctx.fill();
@@ -355,7 +390,7 @@
           const y = r * hexH * 0.75 - hexH;
           cells.push({
             x, y, size,
-            color: PALETTE.warm[Math.floor(Math.random() * PALETTE.warm.length)],
+            color: pickSpectrumColor(Math.random()),
             phase: Math.random() * Math.PI * 2,
           });
         }
@@ -384,15 +419,15 @@
 
         ctx.shadowBlur = brightness > 0.55 ? 14 : 0;
         if (brightness > 0.55) {
-          ctx.shadowColor = `rgba(${cell.color[0]},${cell.color[1]},${cell.color[2]},${brightness * 0.55})`;
+          ctx.shadowColor = rgba(cell.color, brightness * 0.55);
         }
-        ctx.strokeStyle = `rgba(${cell.color[0]},${cell.color[1]},${cell.color[2]},${alpha})`;
+        ctx.strokeStyle = rgba(cell.color, alpha);
         ctx.lineWidth = 1;
         hexPath(ctx, cell.x, cell.y, cell.size * 0.94);
         ctx.stroke();
 
         if (brightness > 0.72) {
-          ctx.fillStyle = `rgba(${cell.color[0]},${cell.color[1]},${cell.color[2]},${(brightness - 0.72) * 0.55})`;
+          ctx.fillStyle = rgba(cell.color, (brightness - 0.72) * 0.55);
           hexPath(ctx, cell.x, cell.y, cell.size * 0.55);
           ctx.fill();
         }
@@ -411,9 +446,9 @@
         columns.push({
           x: i * fontSize,
           y: Math.random() * h - h,
-          speed: 3.2 + Math.random() * 8.8,
+          speed: 35 + Math.random() * 45,
           length: 8 + Math.floor(Math.random() * 20),
-          color: PALETTE.warm[Math.floor(Math.random() * PALETTE.warm.length)],
+          color: pickSpectrumColor(0.68 + Math.random() * 0.32),
           charIdx: Math.floor(Math.random() * 96),
         });
       }
@@ -426,11 +461,11 @@
     },
     update(w, h, time, dt, s) {
       for (const col of s.columns) {
-        col.y += col.speed;
+        col.y += col.speed * dt;
         if (col.y - col.length * s.fontSize > h) {
           col.y = -Math.random() * h * 0.4;
-          col.speed = 3.2 + Math.random() * 8.8;
-          col.color = PALETTE.warm[Math.floor(Math.random() * PALETTE.warm.length)];
+          col.speed = 35 + Math.random() * 45;
+          col.color = pickSpectrumColor(0.68 + Math.random() * 0.32);
         }
       }
     },
@@ -447,15 +482,15 @@
           if (y < -fs || y > h + fs) continue;
           const t = i / col.length;
           let alpha = (1 - t) * 0.75 * xFade;
-          const code = 0x30A0 + ((col.charIdx + i * 7 + Math.floor(time * 1.2)) % 96);
+          const code = 0x30A0 + ((col.charIdx + i * 7 + Math.floor(time * 1.25)) % 96);
           const ch = String.fromCharCode(code);
           if (i === 0) {
-            ctx.fillStyle = `rgba(${col.color[0]},${col.color[1]},${col.color[2]},${Math.min(0.9, alpha * 1.2)})`;
+            ctx.fillStyle = rgba(col.color, Math.min(0.9, alpha * 1.2));
             ctx.shadowBlur = 8;
-            ctx.shadowColor = `rgba(${col.color[0]},${col.color[1]},${col.color[2]},0.5)`;
+            ctx.shadowColor = rgba(col.color, 0.5);
           } else {
             ctx.shadowBlur = 0;
-            ctx.fillStyle = `rgba(${col.color[0]},${col.color[1]},${col.color[2]},${alpha * 0.7})`;
+            ctx.fillStyle = rgba(col.color, alpha * 0.7);
           }
           ctx.fillText(ch, col.x, y);
         }
@@ -468,27 +503,27 @@
   const boxesAnimator = {
     name: 'boxes',
     create(w, h) {
-      const count = 22;
+      const count = 14;
       const boxes = [];
       for (let i = 0; i < count; i++) {
         boxes.push({
           wx: (Math.random() - 0.5) * w * 1.3,
           wy: (Math.random() - 0.5) * h * 1.1,
-          wz: 120 + Math.random() * 520,
-          size: 18 + Math.random() * 62,
+          wz: 160 + Math.random() * 520,
+          size: 22 + Math.random() * 46,
           rx: Math.random() * Math.PI * 2,
           ry: Math.random() * Math.PI * 2,
           rz: Math.random() * Math.PI * 2,
-          drx: (Math.random() - 0.5) * 0.016,
-          dry: (Math.random() - 0.5) * 0.016,
-          drz: (Math.random() - 0.5) * 0.011,
-          driftX: (Math.random() - 0.5) * 0.35,
-          driftY: (Math.random() - 0.5) * 0.35,
-          color: PALETTE.warm[Math.floor(Math.random() * PALETTE.warm.length)],
+          drx: (Math.random() - 0.5) * 0.04,
+          dry: (Math.random() - 0.5) * 0.04,
+          drz: (Math.random() - 0.5) * 0.03,
+          driftX: (Math.random() - 0.5) * 10,
+          driftY: (Math.random() - 0.5) * 10,
+          color: pickSpectrumColor(Math.random()),
           phase: Math.random() * Math.PI * 2,
           nextJitter: Math.random() * 3,
           jitterTimer: 0,
-          scalePulse: 0.9 + Math.random() * 0.2,
+          scalePulse: 0.94 + Math.random() * 0.08,
           pulseSpeed: 0.3 + Math.random() * 0.8,
         });
       }
@@ -503,26 +538,26 @@
     },
     update(w, h, time, dt, s) {
       for (const b of s.boxes) {
-        b.rx += b.drx;
-        b.ry += b.dry;
-        b.rz += b.drz;
-        b.wx += b.driftX;
-        b.wy += b.driftY;
+        b.rx += b.drx * dt;
+        b.ry += b.dry * dt;
+        b.rz += b.drz * dt;
+        b.wx += b.driftX * dt;
+        b.wy += b.driftY * dt;
         
         // Random jitter in rotation and movement
         b.jitterTimer += dt;
         if (b.jitterTimer > b.nextJitter) {
-          const jitterX = (Math.random() - 0.5) * 0.8;
-          const jitterY = (Math.random() - 0.5) * 0.8;
+          const jitterX = (Math.random() - 0.5) * 0.35;
+          const jitterY = (Math.random() - 0.5) * 0.35;
           b.driftX += jitterX;
           b.driftY += jitterY;
-          b.drx += (Math.random() - 0.5) * 0.02;
-          b.dry += (Math.random() - 0.5) * 0.02;
-          b.drz += (Math.random() - 0.5) * 0.01;
+          b.drx += (Math.random() - 0.5) * 0.006;
+          b.dry += (Math.random() - 0.5) * 0.006;
+          b.drz += (Math.random() - 0.5) * 0.004;
           
           // Occasionally change color
-          if (Math.random() < 0.15) {
-            b.color = PALETTE.warm[Math.floor(Math.random() * PALETTE.warm.length)];
+          if (Math.random() < 0.08) {
+            b.color = pickSpectrumColor(Math.random());
           }
           
           b.jitterTimer = 0;
@@ -530,7 +565,7 @@
         }
         
         // Random scale pulsing
-        b.scalePulse = 0.78 + 0.44 * Math.sin(time * b.pulseSpeed + b.phase);
+        b.scalePulse = 0.92 + 0.10 * Math.sin(time * b.pulseSpeed + b.phase);
         
         // Boundaries with bounce
         const boundX = w * 0.75, boundY = h * 0.65;
@@ -544,7 +579,7 @@
         }
         
         // Clamp rotation speeds
-        const maxRot = 0.03;
+        const maxRot = 0.08;
         b.drx = Math.max(-maxRot, Math.min(maxRot, b.drx));
         b.dry = Math.max(-maxRot, Math.min(maxRot, b.dry));
         b.drz = Math.max(-maxRot, Math.min(maxRot, b.drz));
@@ -556,7 +591,7 @@
       const cx = w / 2, cy = h / 2;
       const persp = 800;
       for (const b of s.boxes) {
-        const pulse = 0.55 + 0.45 * Math.sin(time * 0.42 + b.phase);
+        const pulse = 0.5 + 0.5 * Math.sin(time * 0.42 + b.phase);
         const size = b.size * b.scalePulse;
         const projected = [];
         for (const v of BOX_VERTS) {
@@ -567,11 +602,11 @@
           projected.push([px, py, sc]);
         }
         const radial = radialFade(cx + b.wx, cy + b.wy, w, h, 0.65);
-        const alphaBase = (0.45 + pulse * 0.45) * radial;
-        ctx.strokeStyle = `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${alphaBase})`;
-        ctx.lineWidth = 1;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${0.7 * radial})`;
+        const alphaBase = (0.22 + pulse * 0.28) * radial;
+        ctx.strokeStyle = rgba(b.color, alphaBase);
+        ctx.lineWidth = 1.35;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = rgba(b.color, 0.58 * radial);
         for (const [a, bb] of BOX_EDGES) {
           ctx.beginPath();
           ctx.moveTo(projected[a][0], projected[a][1]);
@@ -596,20 +631,18 @@
   let currentItem = null;
   let nextItem = null;
   let transitionStart = 0;
-  let currentTransitionDuration = MIN_TRANSITION_MS;
   let scheduleTimeout = null;
   let currentTransition = null;
   let history = [];
-  let usedTransitions = [];
+
+  function spawn(anim) {
+    return { anim, state: anim.create(W, H) };
+  }
 
   const offA = document.createElement('canvas');
   const offCtxA = offA.getContext('2d');
   const offB = document.createElement('canvas');
   const offCtxB = offB.getContext('2d');
-
-  function spawn(anim) {
-    return { anim, state: anim.create(W, H) };
-  }
 
   function pickNext() {
     let idx;
@@ -633,15 +666,7 @@
   }
 
   function pickNextTransition() {
-    if (usedTransitions.length >= TRANSITIONS.length) {
-      usedTransitions = [];
-    }
-    let idx;
-    do {
-      idx = Math.floor(Math.random() * TRANSITIONS.length);
-    } while (usedTransitions.includes(idx));
-    usedTransitions.push(idx);
-    return idx;
+    return TRANSITIONS[Math.floor(Math.random() * TRANSITIONS.length)];
   }
 
   function beginTransition() {
@@ -649,9 +674,7 @@
     const idx = pickNext();
     nextItem = spawn(ANIMATORS[idx]);
     transitionStart = performance.now();
-    
-    currentTransitionDuration = MIN_TRANSITION_MS + Math.random() * (MAX_TRANSITION_MS - MIN_TRANSITION_MS);
-    currentTransition = TRANSITIONS[pickNextTransition()];
+    currentTransition = pickNextTransition();
   }
 
   function resize() {
@@ -663,219 +686,133 @@
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    
+
     offA.width = W * DPR;
     offA.height = H * DPR;
     offB.width = W * DPR;
     offB.height = H * DPR;
-    
+
     if (currentItem) currentItem.anim.resize(W, H, currentItem.state);
     if (nextItem) nextItem.anim.resize(W, H, nextItem.state);
   }
 
-  // Glitch slice transition
-  function glitchTransition(ctx, w, h, dpr, t, animA, stateA, animB, stateB, time) {
-    offCtxA.save();
-    offCtxA.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxA.clearRect(0, 0, w, h);
-    animA.draw(offCtxA, w, h, time, stateA);
-    offCtxA.restore();
-    
-    offCtxB.save();
-    offCtxB.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxB.clearRect(0, 0, w, h);
-    animB.draw(offCtxB, w, h, time, stateB);
-    offCtxB.restore();
-    
+  function fadeTransition(ctx, w, h, dpr, t, animA, stateA, animB, stateB, time) {
     ctx.save();
-    ctx.drawImage(offA, 0, 0, w * dpr, h * dpr, 0, 0, w, h);
-    
-    const sliceCount = 3 + Math.floor(t * 8);
-    for (let i = 0; i < sliceCount; i++) {
-      const y = (i / sliceCount) * h;
-      const sliceH = h / sliceCount;
-      const offsetX = (Math.random() - 0.5) * 200 * (1 - t);
-      
-      if (Math.random() < t) {
-        ctx.drawImage(
-          offB,
-          0, y * dpr, w * dpr, sliceH * dpr,
-          offsetX, y, w, sliceH
-        );
-      }
-    }
-    
-    const barCount = Math.floor(t * 1);
-    for (let i = 0; i < barCount; i++) {
-      const y = Math.random() * h;
-      const barH = 1 + Math.random() * 10;
-      ctx.fillStyle = `rgba(255, 248, 235, ${0.12 + Math.random() * 0.10})`;
-      ctx.fillRect(0, y, w, barH);
-    }
-    
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.save();
+    ctx.globalAlpha = 1 - t;
+    animA.draw(ctx, w, h, time, stateA);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = t;
+    animB.draw(ctx, w, h, time, stateB);
+    ctx.restore();
+
     ctx.restore();
   }
 
-  // Exclusion blend transition
-  function exclusionTransition(ctx, w, h, dpr, t, animA, stateA, animB, stateB, time) {
-    offCtxA.save();
-    offCtxA.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxA.clearRect(0, 0, w, h);
-    animA.draw(offCtxA, w, h, time, stateA);
-    offCtxA.restore();
-    
-    offCtxB.save();
-    offCtxB.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxB.clearRect(0, 0, w, h);
-    animB.draw(offCtxB, w, h, time, stateB);
-    offCtxB.restore();
-    
-    ctx.save();
-    ctx.globalAlpha = 1;
-    ctx.drawImage(offA, 0, 0, w * dpr, h * dpr, 0, 0, w, h);
-    
-    ctx.globalCompositeOperation = 'exclusion';
-    ctx.globalAlpha = 0.5 + t * 0.5;
-    ctx.drawImage(offB, 0, 0, w * dpr, h * dpr, 0, 0, w, h);
-    
-    ctx.restore();
+  function drawTransitionFrame(targetCtx, w, h, dpr, anim, state, time) {
+    targetCtx.save();
+    targetCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    targetCtx.clearRect(0, 0, w, h);
+    anim.draw(targetCtx, w, h, time, state);
+    targetCtx.restore();
   }
 
-  // Vertical columns melt transition
-  function meltColumnsTransition(ctx, w, h, dpr, t, animA, stateA, animB, stateB, time) {
-    offCtxA.save();
-    offCtxA.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxA.clearRect(0, 0, w, h);
-    animA.draw(offCtxA, w, h, time, stateA);
-    offCtxA.restore();
-    
-    offCtxB.save();
-    offCtxB.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxB.clearRect(0, 0, w, h);
-    animB.draw(offCtxB, w, h, time, stateB);
-    offCtxB.restore();
-    
-    const colWidth = 40;
-    const colCount = Math.ceil(w / colWidth);
-    
-    ctx.save();
-    for (let i = 0; i < colCount; i++) {
-      const x = i * colWidth;
-      const phase = (i / colCount) * Math.PI * 2;
-      const delay = (Math.sin(phase) + 1) / 2;
-      const localT = Math.max(0, Math.min(1, (t - delay * 0.3) / 0.7));
-      
-      const offsetY = -h * 0.35 * (1 - localT) + h * 0.35 * localT;
-      
-      ctx.drawImage(
-        offA,
-        x * dpr, 0, colWidth * dpr, h * dpr,
-        x, -offsetY, colWidth, h
-      );
-      ctx.drawImage(
-        offB,
-        x * dpr, 0, colWidth * dpr, h * dpr,
-        x, offsetY - h, colWidth, h
-      );
-    }
-    ctx.restore();
-  }
-
-  // Sinusoidal warp transition
   function warpTransition(ctx, w, h, dpr, t, animA, stateA, animB, stateB, time) {
-    offCtxA.save();
-    offCtxA.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxA.clearRect(0, 0, w, h);
-    animA.draw(offCtxA, w, h, time, stateA);
-    offCtxA.restore();
-    
-    offCtxB.save();
-    offCtxB.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxB.clearRect(0, 0, w, h);
-    animB.draw(offCtxB, w, h, time, stateB);
-    offCtxB.restore();
-    
-    const stripH = 8;
+    drawTransitionFrame(offCtxA, w, h, dpr, animA, stateA, time);
+    drawTransitionFrame(offCtxB, w, h, dpr, animB, stateB, time);
+
+    const stripH = 10;
     const stripCount = Math.ceil(h / stripH);
-    const blendAlpha = Math.min(1, t * 1.5);
-    
+    const blendAlpha = Math.min(1, t * 1.6);
+
     ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
     for (let i = 0; i < stripCount; i++) {
       const y = i * stripH;
-      const phase = (i / stripCount) * Math.PI * 4 + time * 0.9;
-      const offsetX = Math.sin(phase) * 30 * (1 - Math.abs(t - 0.5) * 2);
-      
+      const sh = Math.min(stripH, h - y);
+      const phase = i * 0.45 + time * 0.7;
+      const offsetX = Math.sin(phase) * 42 * (1 - Math.abs(t - 0.5) * 2);
+
       ctx.globalAlpha = 1 - blendAlpha;
-      ctx.drawImage(
-        offA,
-        0, y * dpr, w * dpr, stripH * dpr,
-        offsetX, y, w, stripH
-      );
-      
+      ctx.drawImage(offA, 0, y * dpr, w * dpr, sh * dpr, offsetX, y, w, sh);
+
       ctx.globalAlpha = blendAlpha;
-      ctx.drawImage(
-        offB,
-        0, y * dpr, w * dpr, stripH * dpr,
-        -offsetX, y, w, stripH
-      );
+      ctx.drawImage(offB, 0, y * dpr, w * dpr, sh * dpr, -offsetX, y, w, sh);
     }
+
     ctx.restore();
   }
 
-  // Pixelation dissolve transition
-  function pixelateTransition(ctx, w, h, dpr, t, animA, stateA, animB, stateB, time) {
-    offCtxA.save();
-    offCtxA.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxA.clearRect(0, 0, w, h);
-    animA.draw(offCtxA, w, h, time, stateA);
-    offCtxA.restore();
-    
-    offCtxB.save();
-    offCtxB.setTransform(dpr, 0, 0, dpr, 0, 0);
-    offCtxB.clearRect(0, 0, w, h);
-    animB.draw(offCtxB, w, h, time, stateB);
-    offCtxB.restore();
-    
-    const blockSize = 8 + Math.sin(t * Math.PI) * 24;
-    const blockCount = Math.ceil(w / blockSize);
-    const blockCountY = Math.ceil(h / blockSize);
-    
+  function blockDissolveTransition(ctx, w, h, dpr, t, animA, stateA, animB, stateB, time) {
+    drawTransitionFrame(offCtxA, w, h, dpr, animA, stateA, time);
+    drawTransitionFrame(offCtxB, w, h, dpr, animB, stateB, time);
+
+    const block = 18 + (1 - t) * 34;
+    const cols = Math.ceil(w / block);
+    const rows = Math.ceil(h / block);
+    const revealSpeed = 2.1;
+
     ctx.save();
-    for (let y = 0; y < blockCountY; y++) {
-      for (let x = 0; x < blockCount; x++) {
-        const bx = x * blockSize;
-        const by = y * blockSize;
-        
-        const threshold = (x + y) / (blockCount + blockCountY);
-        const alpha = Math.max(0, Math.min(1, (t - threshold) * 3 + 0.5));
-        
-        if (alpha < 1) {
-          ctx.globalAlpha = 1 - alpha;
-          ctx.drawImage(
-            offA,
-            bx * dpr, by * dpr, blockSize * dpr, blockSize * dpr,
-            bx, by, blockSize, blockSize
-          );
-        }
-        if (alpha > 0) {
-          ctx.globalAlpha = alpha;
-          ctx.drawImage(
-            offB,
-            bx * dpr, by * dpr, blockSize * dpr, blockSize * dpr,
-            bx, by, blockSize, blockSize
-          );
-        }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const bx = x * block;
+        const by = y * block;
+        const bw = Math.min(block, w - bx);
+        const bh = Math.min(block, h - by);
+        const noise = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+        const threshold = noise - Math.floor(noise);
+        const alpha = Math.max(0, Math.min(1, (t * revealSpeed - threshold) * 2));
+
+        ctx.globalAlpha = 1 - alpha;
+        ctx.drawImage(offA, bx * dpr, by * dpr, bw * dpr, bh * dpr, bx, by, bw, bh);
+
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(offB, bx * dpr, by * dpr, bw * dpr, bh * dpr, bx, by, bw, bh);
       }
     }
+
+    ctx.restore();
+  }
+
+  function radialDissolveTransition(ctx, w, h, dpr, t, animA, stateA, animB, stateB, time) {
+    drawTransitionFrame(offCtxA, w, h, dpr, animA, stateA, time);
+    drawTransitionFrame(offCtxB, w, h, dpr, animB, stateB, time);
+
+    const cx = w * (0.5 + Math.sin(time * 0.4) * 0.08);
+    const cy = h * (0.5 + Math.cos(time * 0.35) * 0.08);
+    const radius = Math.hypot(w, h) * Math.max(0.02, t * 1.15);
+
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(offA, 0, 0, w * dpr, h * dpr, 0, 0, w, h);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalAlpha = Math.min(1, t * 1.2);
+    ctx.drawImage(offB, 0, 0, w * dpr, h * dpr, 0, 0, w, h);
+    ctx.restore();
+
     ctx.restore();
   }
 
   const TRANSITIONS = [
-    glitchTransition,
-    exclusionTransition,
-    meltColumnsTransition,
+    fadeTransition,
     warpTransition,
-    pixelateTransition,
+    blockDissolveTransition,
+    radialDissolveTransition,
   ];
 
   let lastNow = performance.now();
@@ -894,11 +831,10 @@
     ctx.clearRect(0, 0, W, H);
 
     if (nextItem) {
-      const raw = Math.min(1, (now - transitionStart) / currentTransitionDuration);
-      const t = easeInOut(raw);
-      
+      const raw = Math.min(1, (now - transitionStart) / TRANSITION_MS);
+
       currentTransition(
-        ctx, W, H, DPR, t,
+        ctx, W, H, DPR, raw,
         currentItem.anim, currentItem.state,
         nextItem.anim, nextItem.state,
         time
@@ -959,11 +895,14 @@
       fadeProgress = Math.max(fadeTarget, fadeProgress - fadeSpeed * 0.5);
     }
 
-    // Draw mouse-following radial gradient overlay (amber glow)
+    const radialReady = Math.max(0, Math.min(1, (now - startupTime - RADIAL_START_DELAY_MS) / RADIAL_FADE_IN_MS));
+    const radialFade = fadeProgress * radialReady;
+
+    // Draw mouse-following radial gradient overlay (teal glow)
     const gradient = ctx.createRadialGradient(smoothX, smoothY, 0, smoothX, smoothY, smoothRadius);
-    gradient.addColorStop(0, `rgba(200, 130, 70, ${0.15 * fadeProgress})`);
-    gradient.addColorStop(0.7, `rgba(200, 130, 70, ${0.06 * fadeProgress})`);
-    gradient.addColorStop(1, 'rgba(200, 130, 70, 0)');
+    gradient.addColorStop(0, rgba(MOUSE_GLOW_COLOR, 0.15 * radialFade));
+    gradient.addColorStop(0.7, rgba(MOUSE_GLOW_COLOR, 0.06 * radialFade));
+    gradient.addColorStop(1, rgba(MOUSE_GLOW_COLOR, 0));
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, W, H);
 
@@ -972,29 +911,18 @@
     requestAnimationFrame(frame);
   }
 
+  const startX = window.innerWidth / 2;
+  const startY = window.innerHeight / 2;
+  const startupTime = performance.now();
   const startIdx = pickNext();
   history.push(startIdx);
   window.addEventListener('resize', resize);
   resize();
   currentItem = spawn(ANIMATORS[startIdx]);
   scheduleNext();
-  
-  // Mouse tracking for radial gradient
-  const radialOverlay = document.createElement('div');
-  radialOverlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 0;
-    animation: radialFadeIn 9s ease-in forwards;
-  `;
-  document.body.insertBefore(radialOverlay, document.querySelector('.bg-container'));
-  
-  let mouseX = window.innerWidth / 2;
-  let mouseY = window.innerHeight / 2;
+
+  let mouseX = startX;
+  let mouseY = startY;
   let smoothX = mouseX;
   let smoothY = mouseY;
   let smoothRadius = 350;

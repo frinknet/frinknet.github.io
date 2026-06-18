@@ -6,14 +6,25 @@
 <title>FRINKnet</title>
 <link rel="icon" type="image/png" href="frink.png">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  img {
+    user-drag: none;
+    -webkit-user-drag: none;
+  }
 
   html, body {
     overflow: hidden;
   }
 
   body {
-    background: #0a0a0c;
+    background: #070b0d;
     color: #c8b8a0;
     font-family: 'Courier New', Courier, monospace;
     min-height: 100vh;
@@ -47,7 +58,7 @@
       opacity: 0.3;
     }
     100% {
-      transform: scale(1);
+      transform: scale(1.1);
       opacity: 1;
     }
   }
@@ -103,7 +114,7 @@
     justify-content: center;
     gap: 0;
     font-size: clamp(1rem, 2.5vw, 1.5rem);
-    letter-spacing: 0.35em;
+    letter-spacing: 0.10em;
     text-transform: lowercase;
   }
 
@@ -123,7 +134,11 @@
     color: #ffffff;
   }
 
-  .hero-image {
+  .mobile-nav-row {
+    display: none;
+  }
+
+  .mascot-image {
     min-height: 50vh;
     min-width: 50vh;
     max-width: 80vw;
@@ -131,11 +146,17 @@
     object-fit: contain;
     display: block;
     filter: drop-shadow(0 0 40px rgba(200, 130, 60, 0.15));
-    opacity: 0.70;
+    opacity: 0.80;
+  }
+
+  .mascot-figure {
+    position: relative;
+    display: flex;
+    justify-content: center;
   }
 
   .bottom-line {
-    font-size: clamp(1.5rem, 4vw, 2.25rem);
+    font-size: clamp(1.25rem, 3.4vw, 2.15rem);
     letter-spacing: 0.15em;
     color: #f5ebe0;
     margin-top: clamp(1rem, 5vw, 2.5rem);
@@ -180,28 +201,125 @@
     0%, 45% { opacity: 0.55; }
     46%, 100% { opacity: 0; }
   }
+
+  @media (max-width: 700px) {
+    .content {
+      padding-bottom: 16vh;
+    }
+
+    .mascot-image {
+      min-height: 42vh;
+      min-width: 42vh;
+      max-width: 78vw;
+      max-height: 52vh;
+    }
+
+    .top-line {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      margin: 0;
+      padding: 1.3rem max(0.75rem, env(safe-area-inset-left)) calc(1.3rem + env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-right));
+      background: transparent;
+      border-top: 0;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .top-line::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: linear-gradient(to bottom, rgba(10, 10, 12, 0), rgba(10, 10, 12, 0.88));
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
+      mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
+    }
+
+    .top-line > nav {
+      position: relative;
+      z-index: 1;
+    }
+
+    .top-line ul {
+      display: none;
+    }
+
+    .mobile-nav-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      align-items: center;
+      gap: 0;
+    }
+
+    .top-line li + li::before {
+      display: none;
+    }
+
+    .top-line a {
+      display: block;
+      padding: 0.45rem 0.35rem;
+    }
+
+    .mobile-nav-row > a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .mobile-nav-help {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 4.4rem;
+      height: 2.35rem;
+      margin: 0 auto;
+      border: 1px solid rgba(10, 10, 12, 0.35);
+      border-radius: 999px;
+      background: #f5ebe0;
+      color: #0a0a0c;
+      font: inherit;
+      line-height: 1;
+    }
+  }
 </style>
 </head>
 <body>
 
 <div class="bg-container">
-  <canvas id="network-canvas"></canvas>
+  <canvas id="network-canvas" aria-hidden="true" role="presentation"></canvas>
 </div>
 
-<div class="content-container">
-  <div class="content">
-    <nav class="top-line" aria-label="Main navigation">
-      <ul>
-        <li><a href="/libs/">libs</a></li>
-        <li><a href="/apps/">apps</a></li>
-        <li><a href="/tools/">tools</a></li>
-        <li><a href="/docs/">docs</a></li>
-      </ul>
-    </nav>
-    <img src="frink.png" alt="FRINKnet and friends" class="hero-image">
+<main class="content-container">
+  <section class="content" aria-labelledby="bottom-title">
+    <header class="top-line">
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="/tools/">tools</a></li>
+          <li><a href="/libs/">libs</a></li>
+          <li><a href="/news/">news</a></li>
+          <li><a href="/about/">about</a></li>
+          <li><a href="/docs/">docs</a></li>
+        </ul>
+        <div class="mobile-nav-row" aria-label="Mobile navigation">
+          <a href="/tools/">tools</a>
+          <a href="/news/">news</a>
+          <button class="mobile-nav-help" type="button" aria-label="Ask FRINKnet">ask!</button>
+          <a href="/libs/">libs</a>
+          <a href="/docs/">docs</a>
+        </div>
+      </nav>
+    </header>
+    <figure class="mascot-figure">
+      <img src="frink.png" alt="FRINKnet and friends" class="mascot-image" draggable="false">
+    </figure>
     <h1 class="bottom-line" id="bottom-title"></h1>
-  </div>
-</div>
+  </section>
+</main>
 
 <script>
   const titles = [
@@ -224,8 +342,18 @@
     'wizard of websockets',
     'faust and festidious',
     'realtime reliability',
-    'pedantic persistance',
+    'pedantic persistence',
   ];
+
+  document.addEventListener('selectstart', (event) => {
+    event.preventDefault();
+  });
+
+  document.addEventListener('dragstart', (event) => {
+    if (event.target instanceof HTMLAnchorElement) {
+      event.preventDefault();
+    }
+  });
 
   const titleEl = document.getElementById('bottom-title');
   const initialText = titles[Math.floor(Math.random() * titles.length)];
