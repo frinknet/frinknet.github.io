@@ -3,26 +3,27 @@
 
   const PALETTE = {
     warm: [
-      [200, 130, 70],
-      [180, 110, 60],
-      [220, 160, 100],
-      [160, 140, 120],
-      [140, 130, 110],
-      [100, 90, 80],
+      [235, 165, 95],
+      [225, 145, 85],
+      [245, 175, 105],
+      [215, 140, 80],
+      [205, 150, 90],
+      [195, 145, 85],
+      [220, 160, 95],
+      [210, 135, 75],
     ],
     cool: [
-      [80, 210, 220],
-      [70, 170, 210],
-      [120, 220, 230],
-      [60, 130, 190],
+      [140, 200, 200],
+      [120, 190, 190],
+      [130, 195, 195],
     ],
   };
 
   const COLOR_SPECTRUM = [
     ...PALETTE.warm,
-    [205, 175, 150],
-    [165, 185, 175],
-    [125, 205, 190],
+    [230, 160, 100],
+    [220, 150, 90],
+    [210, 155, 95],
     ...PALETTE.cool,
   ];
 
@@ -31,14 +32,15 @@
   }
 
   function pickSpectrumColor(randomness = Math.random()) {
-    const idx = Math.floor(randomness * (COLOR_SPECTRUM.length - 1));
+    const skewed = Math.pow(randomness, 1.6);
+    const idx = Math.floor(skewed * (COLOR_SPECTRUM.length - 1));
     return COLOR_SPECTRUM[idx];
   }
 
-  const CYBER_GRID_COLOR = pickSpectrumColor(0.72);
-  const CYBER_GRID_BRIGHT_COLOR = pickSpectrumColor(0.86);
+  const CYBER_GRID_COLOR = pickSpectrumColor(0.3);
+  const CYBER_GRID_BRIGHT_COLOR = pickSpectrumColor(0.4);
   const SCANLINE_COLOR = pickSpectrumColor(0.68);
-  const MOUSE_GLOW_COLOR = pickSpectrumColor(0.78);
+  const MOUSE_GLOW_COLOR = [245, 150, 20];
 
   const TRANSITION_MS = 7000;
   const RADIAL_START_DELAY_MS = 3600;
@@ -46,6 +48,7 @@
   const MIN_INTERVAL_MS = 14000;
   const MAX_INTERVAL_MS = 34000;
 
+  const OVERSIZE = 1.4;
   const canvas = document.getElementById('network-canvas');
   const ctx = canvas.getContext('2d');
   let W = 0, H = 0, DPR = 1;
@@ -450,6 +453,9 @@
           length: 8 + Math.floor(Math.random() * 20),
           color: pickSpectrumColor(0.68 + Math.random() * 0.32),
           charIdx: Math.floor(Math.random() * 96),
+          charTimer: 0,
+          charRate: 3 + Math.random() * 6,
+          charOffset: 0,
         });
       }
       return { columns, fontSize };
@@ -462,6 +468,12 @@
     update(w, h, time, dt, s) {
       for (const col of s.columns) {
         col.y += col.speed * dt;
+        col.charTimer += dt;
+        if (col.charTimer >= col.charRate) {
+          col.charTimer -= col.charRate;
+          col.charOffset = (col.charOffset + 1 + Math.floor(Math.random() * 5)) % 96;
+          col.charRate = 0.06 + Math.random() * 0.18;
+        }
         if (col.y - col.length * s.fontSize > h) {
           col.y = -Math.random() * h * 0.4;
           col.speed = 35 + Math.random() * 45;
@@ -482,7 +494,7 @@
           if (y < -fs || y > h + fs) continue;
           const t = i / col.length;
           let alpha = (1 - t) * 0.75 * xFade;
-          const code = 0x30A0 + ((col.charIdx + i * 7 + Math.floor(time * 1.25)) % 96);
+          const code = 0x30A0 + ((col.charIdx + col.charOffset + i * 3 + Math.floor(time * 6)) % 96);
           const ch = String.fromCharCode(code);
           if (i === 0) {
             ctx.fillStyle = rgba(col.color, Math.min(0.9, alpha * 1.2));
@@ -503,12 +515,12 @@
   const boxesAnimator = {
     name: 'boxes',
     create(w, h) {
-      const count = 14;
+      const count = 20;
       const boxes = [];
       for (let i = 0; i < count; i++) {
         boxes.push({
-          wx: (Math.random() - 0.5) * w * 1.3,
-          wy: (Math.random() - 0.5) * h * 1.1,
+          wx: (Math.random() - 0.5) * w * 2.2,
+          wy: (Math.random() - 0.5) * h * 2.0,
           wz: 160 + Math.random() * 520,
           size: 22 + Math.random() * 46,
           rx: Math.random() * Math.PI * 2,
@@ -530,10 +542,10 @@
       return { boxes };
     },
     resize(w, h, s) {
-      const halfW = w * 0.55, halfH = h * 0.55;
+      const halfW = w * 1.1, halfH = h * 1.0;
       for (const b of s.boxes) {
-        if (Math.abs(b.wx) > halfW) b.wx = (Math.random() - 0.5) * w * 0.9;
-        if (Math.abs(b.wy) > halfH) b.wy = (Math.random() - 0.5) * h * 0.75;
+        if (Math.abs(b.wx) > halfW) b.wx = (Math.random() - 0.5) * w * 1.8;
+        if (Math.abs(b.wy) > halfH) b.wy = (Math.random() - 0.5) * h * 1.6;
       }
     },
     update(w, h, time, dt, s) {
@@ -568,7 +580,7 @@
         b.scalePulse = 0.92 + 0.10 * Math.sin(time * b.pulseSpeed + b.phase);
         
         // Boundaries with bounce
-        const boundX = w * 0.75, boundY = h * 0.65;
+        const boundX = w * 1.2, boundY = h * 1.1;
         if (Math.abs(b.wx) > boundX) {
           b.driftX *= -0.9;
           b.wx = Math.sign(b.wx) * boundX;
@@ -679,8 +691,8 @@
 
   function resize() {
     DPR = window.devicePixelRatio || 1;
-    W = window.innerWidth;
-    H = window.innerHeight;
+    W = Math.ceil(window.innerWidth * OVERSIZE);
+    H = Math.ceil(window.innerHeight * OVERSIZE);
     canvas.width = W * DPR;
     canvas.height = H * DPR;
     canvas.style.width = W + 'px';
@@ -701,13 +713,16 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
+    const fadeOut = 1 - Math.pow(1 - t, 2.2);
+    const fadeIn = Math.pow(t, 2.0);
+
     ctx.save();
-    ctx.globalAlpha = 1 - t;
+    ctx.globalAlpha = 1 - fadeOut;
     animA.draw(ctx, w, h, time, stateA);
     ctx.restore();
 
     ctx.save();
-    ctx.globalAlpha = t;
+    ctx.globalAlpha = fadeIn;
     animB.draw(ctx, w, h, time, stateB);
     ctx.restore();
 
@@ -854,82 +869,66 @@
       currentItem.anim.draw(ctx, W, H, time, currentItem.state);
     }
 
-    // Smooth mouse tracking for radial gradient with velocity-based radius
-    const dx = mouseX - lastMouseX;
-    const dy = mouseY - lastMouseY;
-    const velocity = Math.sqrt(dx * dx + dy * dy);
-    lastMouseX = mouseX;
-    lastMouseY = mouseY;
-    
-    smoothX += (mouseX - smoothX) * 0.14;
-    smoothY += (mouseY - smoothY) * 0.14;
-    
-    // Map velocity to radius (100-550 range)
-    const targetRadius = Math.min(550, Math.max(100, 100 + velocity * 2.5));
-    
-    if (velocity > 0.5) {
-      // Mouse is moving, reset timer and zoom in
-      velocityTimer = 0;
-      isZoomingOut = false;
-      smoothRadius += (targetRadius - smoothRadius) * 0.1;
-    } else {
-      // Mouse is still, start the delay timer
-      velocityTimer += 1/60;
-      
-      if (velocityTimer > 0.3) { // 0.3s delay before zoom out
-        isZoomingOut = true;
-      }
-      
-      if (isZoomingOut) {
-        // Ease out zoom (slower interpolation)
-        smoothRadius += (targetRadius - smoothRadius) * 0.03;
-      }
-    }
+    const SPRING_TENSION = 0.035;
+    const SPRING_DAMPING = 0.82;
+
+    velX += (mouseX - smoothX) * SPRING_TENSION;
+    velY += (mouseY - smoothY) * SPRING_TENSION;
+    velX *= SPRING_DAMPING;
+    velY *= SPRING_DAMPING;
+    smoothX += velX;
+    smoothY += velY;
+
+    const glowSpeed = Math.sqrt(velX * velX + velY * velY);
+    const distanceRatio = Math.min(1, glowSpeed / 30);
+    const targetRadius = 120 + Math.pow(distanceRatio, 0.5) * 180;
+    smoothRadius += (targetRadius - smoothRadius) * 0.09;
+    smoothRadius = Math.max(100, Math.min(380, smoothRadius));
 
     // Smooth fade-in animation with easing
-    const fadeSpeed = 0.05;
-    if (fadeProgress < fadeTarget) {
-      fadeProgress = Math.min(fadeTarget, fadeProgress + fadeSpeed);
-    } else if (fadeProgress > fadeTarget && Date.now() - lastMouseActivity > 2000) {
-      // Fade out after 2 seconds of no mouse activity
-      fadeProgress = Math.max(fadeTarget, fadeProgress - fadeSpeed * 0.5);
+    const fadeSpeed = 0.08;
+    const idleTime = Date.now() - lastMouseActivity;
+    
+    if (idleTime > 4000) {
+      fadeTarget = 0;
     }
+    
+    fadeProgress += (fadeTarget - fadeProgress) * fadeSpeed;
+    if (fadeProgress < 0.01) fadeProgress = 0;
 
     const radialReady = Math.max(0, Math.min(1, (now - startupTime - RADIAL_START_DELAY_MS) / RADIAL_FADE_IN_MS));
     const radialFade = fadeProgress * radialReady;
 
-    // Draw mouse-following radial gradient overlay (teal glow)
-    const gradient = ctx.createRadialGradient(smoothX, smoothY, 0, smoothX, smoothY, smoothRadius);
-    gradient.addColorStop(0, rgba(MOUSE_GLOW_COLOR, 0.15 * radialFade));
-    gradient.addColorStop(0.7, rgba(MOUSE_GLOW_COLOR, 0.06 * radialFade));
-    gradient.addColorStop(1, rgba(MOUSE_GLOW_COLOR, 0));
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, W, H);
+    // Only draw gradient if visible
+    if (radialFade > 0.01) {
+      const gradient = ctx.createRadialGradient(smoothX, smoothY, 0, smoothX, smoothY, smoothRadius);
+      gradient.addColorStop(0, rgba(MOUSE_GLOW_COLOR, 0.15 * radialFade));
+      gradient.addColorStop(0.7, rgba(MOUSE_GLOW_COLOR, 0.06 * radialFade));
+      gradient.addColorStop(1, rgba(MOUSE_GLOW_COLOR, 0));
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, W, H);
+    }
 
     ctx.restore();
 
     requestAnimationFrame(frame);
   }
 
-  const startX = window.innerWidth / 2;
-  const startY = window.innerHeight / 2;
   const startupTime = performance.now();
   const startIdx = pickNext();
   history.push(startIdx);
-  window.addEventListener('resize', resize);
+  window.addEventListener('resize', () => { resize(); });
   resize();
   currentItem = spawn(ANIMATORS[startIdx]);
   scheduleNext();
 
-  let mouseX = startX;
-  let mouseY = startY;
+  let mouseX = W / 2;
+  let mouseY = H / 2;
   let smoothX = mouseX;
   let smoothY = mouseY;
+  let velX = 0;
+  let velY = 0;
   let smoothRadius = 350;
-  let lastMouseX = mouseX;
-  let lastMouseY = mouseY;
-  let velocityTimer = 0;
-  let isZoomingOut = false;
   let fadeProgress = 0;
   let fadeTarget = 0;
   let lastMouseActivity = Date.now();
@@ -940,8 +939,11 @@
   }
   
   window.addEventListener('mousemove', (e) => {
-    mouseX = e.clientX;
-    mouseY = e.clientY;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.offsetWidth / rect.width;
+    const scaleY = canvas.offsetHeight / rect.height;
+    mouseX = (e.clientX - rect.left) * scaleX;
+    mouseY = (e.clientY - rect.top) * scaleY;
     triggerFadeIn();
   });
   
