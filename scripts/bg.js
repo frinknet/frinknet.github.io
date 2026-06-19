@@ -40,7 +40,7 @@
   const CYBER_GRID_COLOR = pickSpectrumColor(0.3);
   const CYBER_GRID_BRIGHT_COLOR = pickSpectrumColor(0.4);
   const SCANLINE_COLOR = pickSpectrumColor(0.68);
-  const MOUSE_GLOW_COLOR = [245, 150, 20];
+  const MOUSE_GLOW_COLOR = [235, 150, 80];
 
   const TRANSITION_MS = 7000;
   const RADIAL_START_DELAY_MS = 3600;
@@ -156,14 +156,14 @@
           const dx = a.x - b.x, dy = a.y - b.y;
           const d2 = dx * dx + dy * dy;
           if (d2 < maxD2) {
-            const alpha = (1 - d2 / maxD2) * 0.32;
+            const alpha = (1 - d2 / maxD2) * 0.42;
             const fade = radialFade((a.x + b.x) / 2, (a.y + b.y) / 2, w, h, 0.55);
             const pulse = 0.7 + 0.3 * Math.sin(time * 0.5 + a.phase);
             const r = (a.color[0] + b.color[0]) >> 1;
             const g = (a.color[1] + b.color[1]) >> 1;
             const bl = (a.color[2] + b.color[2]) >> 1;
             ctx.strokeStyle = `rgba(${r},${g},${bl},${alpha * pulse * fade})`;
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 2.0;
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
@@ -174,9 +174,9 @@
       for (const n of nodes) {
         const pulse = 0.6 + 0.4 * Math.sin(time * 0.25 + n.phase);
         const fade = radialFade(n.x, n.y, w, h, 0.55);
-        ctx.fillStyle = `rgba(${n.color[0]},${n.color[1]},${n.color[2]},${(0.5 + 0.25 * pulse) * fade})`;
+        ctx.fillStyle = `rgba(${n.color[0]},${n.color[1]},${n.color[2]},${(0.6 + 0.25 * pulse) * fade})`;
         ctx.beginPath();
-        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.arc(n.x, n.y, n.r + 0.4, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.restore();
@@ -515,7 +515,7 @@
   const boxesAnimator = {
     name: 'boxes',
     create(w, h) {
-      const count = 20;
+      const count = 36;
       const boxes = [];
       for (let i = 0; i < count; i++) {
         boxes.push({
@@ -617,8 +617,8 @@
         const alphaBase = (0.22 + pulse * 0.28) * radial;
         ctx.strokeStyle = rgba(b.color, alphaBase);
         ctx.lineWidth = 1.35;
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = rgba(b.color, 0.58 * radial);
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = rgba(b.color, 0.45 * radial);
         for (const [a, bb] of BOX_EDGES) {
           ctx.beginPath();
           ctx.moveTo(projected[a][0], projected[a][1]);
@@ -711,18 +711,21 @@
   function fadeTransition(ctx, w, h, dpr, t, animA, stateA, animB, stateB, time) {
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(7,11,13,1)';
+    ctx.fillRect(0, 0, w, h);
 
-    const fadeOut = 1 - Math.pow(1 - t, 2.2);
-    const fadeIn = Math.pow(t, 2.0);
+    const fadeOut = Math.min(1, t / 0.58);
+    const fadeIn = Math.min(1, Math.max(0, (t - 0.42) / 0.58));
+    const outAlpha = 1 - Math.pow(fadeOut, 0.75);
+    const inAlpha = Math.pow(fadeIn, 0.75);
 
     ctx.save();
-    ctx.globalAlpha = 1 - fadeOut;
+    ctx.globalAlpha = outAlpha;
     animA.draw(ctx, w, h, time, stateA);
     ctx.restore();
 
     ctx.save();
-    ctx.globalAlpha = fadeIn;
+    ctx.globalAlpha = inAlpha;
     animB.draw(ctx, w, h, time, stateB);
     ctx.restore();
 
@@ -881,7 +884,7 @@
 
     const glowSpeed = Math.sqrt(velX * velX + velY * velY);
     const distanceRatio = Math.min(1, glowSpeed / 30);
-    const targetRadius = 120 + Math.pow(distanceRatio, 0.5) * 180;
+    const targetRadius = 100 + (20 + Math.pow(distanceRatio, 0.5) * 180) * fadeProgress;
     smoothRadius += (targetRadius - smoothRadius) * 0.09;
     smoothRadius = Math.max(100, Math.min(380, smoothRadius));
 
